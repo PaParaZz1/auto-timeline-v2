@@ -67,10 +67,19 @@ class MaskRCNNLossComputation(object):
         matched_targets.add_field("matched_idxs", matched_idxs)
         return matched_targets
 
-    def prepare_targets(self, proposals, targets):
+    def resize_edge(self, edges, M):
+        result = []
+        for item in edges:
+            result.append(F.interpolate(item, size=(M, M), mode='bicubic'))
+        return torch.stack(result, dim=0)
+
+    def prepare_targets(self, proposals, targets, edges):
         labels = []
         masks = []
-        for proposals_per_image, targets_per_image in zip(proposals, targets):
+        mask_edges = []
+        if edges is None:
+            edges = [None for _ in range(len(proposals))]
+        for proposals_per_image, targets_per_image, edges_per_image in zip(proposals, targets, edges):
             # Note, skip the proposals without bbox
             matched_targets = self.match_targets_to_proposals(
                 proposals_per_image, targets_per_image
@@ -87,7 +96,7 @@ class MaskRCNNLossComputation(object):
 
             # mask scores are only computed on positive samples
             positive_inds = torch.nonzero(labels_per_image > 0).squeeze(1)
-            
+
             segmentation_masks = matched_targets.get_field("masks")
             segmentation_masks = segmentation_masks[positive_inds]
 
@@ -99,21 +108,29 @@ class MaskRCNNLossComputation(object):
 
             labels.append(labels_per_image)
             masks.append(masks_per_image)
+            if edges_per_image is not None:
+                edges_per_image = edges_per_image[positive_inds]
+                edges_per_image = self.resize_edge(
+                    edges_per_image, self.discretization_size)
+                mask_edges.append(edges_per_image)
 
-        return labels, masks
+        return labels, masks, mask_edges
 
-    def __call__(self, proposals, mask_logits, targets):
+    def __call__(self, proposals, mask_logits, targets, target_edges=None, edge_kwargs=None):
         """
         Arguments:
             proposals (list[BoxList])
             mask_logits (Tensor)
             targets (list[BoxList])
+            target_edges (list[list[Tensor]], optional)
+            edge_kwargs (dict, optional)
 
         Return:
             mask_loss (Tensor): scalar tensor containing the loss
         """
-        labels, mask_targets = self.prepare_targets(proposals, targets)
- 
+        labels, mask_targets, mask_edges = self.prepare_targets(
+            proposals, targets, target_edges)
+
         labels = cat(labels, dim=0)
         mask_targets = cat(mask_targets, dim=0)
 
@@ -124,9 +141,23 @@ class MaskRCNNLossComputation(object):
         # accept empty tensors, so handle it separately
         if mask_targets.numel() == 0:
             return mask_logits.sum() * 0
+        if target_edges is None:
+            weight = None
+        else:
+            mask_edges = cat(mask_edges, dim=0)
+            if edge_kwargs['type'] == 'direct':
+                weight = mask_edges
+            elif edge_kwargs['type'] == 'weighted':
+                weight = (torch.ones_like(mask_targets) +
+                          edge_kwargs['add_weight'] * mask_edges)
+            elif edge_kwargs['type'] == 'intersect':
+                weight = torch.where((mask_edges > 0.1) & (mask_targets > 0),
+                                     torch.ones_like(mask_targets), torch.zeros_like(mask_targets))
+            else:
+                raise ValueError
 
         mask_loss = F.binary_cross_entropy_with_logits(
-            mask_logits[positive_inds, labels_pos], mask_targets
+            mask_logits[positive_inds, labels_pos], mask_targets, weight=weight
         )
         return mask_loss
 

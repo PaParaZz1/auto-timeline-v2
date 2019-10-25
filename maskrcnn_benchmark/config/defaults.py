@@ -166,8 +166,9 @@ _C.MODEL.RPN.RPN_HEAD = "SingleConvRPNHead"
 # EDGE options
 # ---------------------------------------------------------------------------- #
 _C.MODEL.TARGET_EDGE_ON = False
-_C.MODEL.EDGE_KWARGS = 0  # TODO
-
+_C.MODEL.EDGE_KWARGS = {'type': 'weighted',  # weighted or direct or intersect
+                        'add_weight': 1.0  # only for weighted
+                       }
 
 # ---------------------------------------------------------------------------- #
 # ROI HEADS options
