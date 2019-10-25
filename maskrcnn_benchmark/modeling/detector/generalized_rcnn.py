@@ -12,6 +12,8 @@ from ..backbone import build_backbone, ResNetXFPN
 from ..rpn.rpn import build_rpn
 from ..roi_heads.roi_heads import build_roi_heads
 from ..classifier.classifier import build_classifier
+from ..edge_extractor import build_edge_extractor
+
 
 class GeneralizedRCNN(nn.Module):
     """
@@ -32,7 +34,9 @@ class GeneralizedRCNN(nn.Module):
         if cfg.MODEL.CLASSIFIER_CLS_ON:
             self.classifier = build_classifier('image_class', 0.15, cfg)
         if cfg.MODEL.CLASSIFIER_ORIENT_ON:
-            self.classifier2 =  build_classifier('image_orientation', 0.15, cfg)
+            self.classifier2 = build_classifier('image_orientation', 0.15, cfg)
+        if cfg.MODEL.TARGET_EDGE_ON:
+            self.edge_extractor = build_edge_extractor(cfg)
         self.cfg = cfg.clone()
 
     def forward(self, images, targets=None):
@@ -52,7 +56,7 @@ class GeneralizedRCNN(nn.Module):
             raise ValueError("In training mode, targets should be passed")
         images = to_image_list(images)
 
-        if isinstance(self.backbone, ResNetXFPN): 
+        if isinstance(self.backbone, ResNetXFPN):
             features, image_feature = self.backbone(images.tensors)
         else:
             features = self.backbone(images.tensors)
@@ -62,16 +66,23 @@ class GeneralizedRCNN(nn.Module):
             # when not trainning, image_classes: Bx2 (class_prob, class_label)
             # when trainning, image_classes: Bx1 class_label
             _, image_classes, classifier_losses = self.classifier(features[-1], targets)
-        
+
         if self.cfg.MODEL.CLASSIFIER_ORIENT_ON:
             # when not trainning, image_classes: Bx2 (class_prob, class_label)
             # when trainning, image_classes: Bx1 class_label
             _, image_orientations, classifier2_losses = self.classifier2(features[-1], targets)
-        
+
         proposals, proposal_losses = self.rpn(images, features, targets)
+        if self.cfg.MODEL.TARGET_EDGE_ON:
+            target_edges = self.edge_extractor(images, proposals)
+            edge_kwargs = self.cfg.MODEL.EDGE_KWARGS
+        else:
+            target_edges = None
+            edge_kwargs = None
 
         if self.roi_heads:
-            x, result, detector_losses = self.roi_heads(features, proposals, targets)
+            x, result, detector_losses = self.roi_heads(features, proposals, targets,
+                                                        target_edges, edge_kwargs)
         else:
             # RPN-only models don't have roi_heads
             x = features
@@ -92,7 +103,7 @@ class GeneralizedRCNN(nn.Module):
         if self.cfg.MODEL.CLASSIFIER_CLS_ON:
             for image_class_prob, image_class_pred, boxlist in zip(*image_classes, result):
                 boxlist.add_field("image_class_pred", (image_class_prob, image_class_pred))
-        
+
         # if is not trainning
         if self.cfg.MODEL.CLASSIFIER_ORIENT_ON:
             for image_orientation_prob, image_orientation_pred, boxlist in zip(*image_orientations, result):
