@@ -33,7 +33,7 @@ def keep_only_positive_boxes(boxes, target_edges):
         positive_boxes.append(boxes_per_image[inds])
         positive_inds.append(inds_mask)
         if edges_per_image:
-            positive_target_edges.append(edges_per_image[inds])
+            positive_target_edges.append([edges_per_image[i.item()] for i in inds])  # TODO speed optimize
     positive_target_edges = positive_target_edges if target_edges else None
     return positive_boxes, positive_target_edges, positive_inds
 

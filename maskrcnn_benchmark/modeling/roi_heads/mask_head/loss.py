@@ -70,7 +70,8 @@ class MaskRCNNLossComputation(object):
     def resize_edge(self, edges, M):
         result = []
         for item in edges:
-            result.append(F.interpolate(item, size=(M, M), mode='bicubic'))
+            item = item.unsqueeze(0)
+            result.append(F.interpolate(item, size=(M, M), mode='bicubic').squeeze(0))
         return torch.stack(result, dim=0)
 
     def prepare_targets(self, proposals, targets, edges):
@@ -109,7 +110,7 @@ class MaskRCNNLossComputation(object):
             labels.append(labels_per_image)
             masks.append(masks_per_image)
             if edges_per_image is not None:
-                edges_per_image = edges_per_image[positive_inds]
+                edges_per_image = [edges_per_image[i.item()] for i in positive_inds]  # TODO speed optimize
                 edges_per_image = self.resize_edge(
                     edges_per_image, self.discretization_size)
                 mask_edges.append(edges_per_image)
@@ -142,23 +143,24 @@ class MaskRCNNLossComputation(object):
         if mask_targets.numel() == 0:
             return mask_logits.sum() * 0
         if target_edges is None:
-            weight = None
+            weight = torch.ones_like(mask_targets)
         else:
             mask_edges = cat(mask_edges, dim=0)
-            if edge_kwargs['type'] == 'direct':
+            if edge_kwargs.TYPE == 'direct':
                 weight = mask_edges
-            elif edge_kwargs['type'] == 'weighted':
+            elif edge_kwargs.TYPE == 'weighted':
                 weight = (torch.ones_like(mask_targets) +
-                          edge_kwargs['add_weight'] * mask_edges)
-            elif edge_kwargs['type'] == 'intersect':
+                          edge_kwargs.ADD_WEIGHT * mask_edges)
+            elif edge_kwargs.TYPE == 'intersect':
                 weight = torch.where((mask_edges > 0.1) & (mask_targets > 0),
                                      torch.ones_like(mask_targets), torch.zeros_like(mask_targets))
             else:
                 raise ValueError
 
         mask_loss = F.binary_cross_entropy_with_logits(
-            mask_logits[positive_inds, labels_pos], mask_targets, weight=weight
+            mask_logits[positive_inds, labels_pos], mask_targets, reduction='none'
         )
+        mask_loss = (mask_loss * weight).mean()
         return mask_loss
 
 
