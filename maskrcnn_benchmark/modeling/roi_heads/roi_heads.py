@@ -17,7 +17,7 @@ class CombinedROIHeads(torch.nn.ModuleDict):
         if cfg.MODEL.MASK_ON and cfg.MODEL.ROI_MASK_HEAD.SHARE_BOX_FEATURE_EXTRACTOR:
             self.mask.feature_extractor = self.box.feature_extractor
 
-    def forward(self, features, proposals, targets=None):
+    def forward(self, features, proposals, targets=None, target_edges=None, edge_kwargs=None):
         losses = {}
         # TODO rename x to roi_box_features, if it doesn't increase memory consumption
         x, detections, loss_box = self.box(features, proposals, targets)
@@ -33,7 +33,7 @@ class CombinedROIHeads(torch.nn.ModuleDict):
                 mask_features = x
             # During training, self.box() will return the unaltered proposals as "detections"
             # this makes the API consistent during training and testing
-            x, detections, loss_mask = self.mask(mask_features, detections, targets)
+            x, detections, loss_mask = self.mask(mask_features, detections, targets, target_edges, edge_kwargs)
             losses.update(loss_mask)
         return x, detections, losses
 

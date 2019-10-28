@@ -25,14 +25,17 @@ def keep_only_positive_boxes(boxes, target_edges):
     positive_boxes = []
     positive_inds = []
     positive_target_edges = []
-    for boxes_per_image, edges_per_image in zip(boxes, target_edges):
+    edges = [None for _ in range(len(boxes))] if not target_edges else target_edges
+    for boxes_per_image, edges_per_image in zip(boxes, edges):
         labels = boxes_per_image.get_field("labels")
         inds_mask = labels > 0
         inds = inds_mask.nonzero().squeeze(1)
         positive_boxes.append(boxes_per_image[inds])
-        positive_target_edges.append(edges_per_image[inds])
         positive_inds.append(inds_mask)
-    return positive_boxes, positive_inds
+        if edges_per_image:
+            positive_target_edges.append(edges_per_image[inds])
+    positive_target_edges = positive_target_edges if target_edges else None
+    return positive_boxes, positive_target_edges, positive_inds
 
 
 class ROIMaskHead(torch.nn.Module):
