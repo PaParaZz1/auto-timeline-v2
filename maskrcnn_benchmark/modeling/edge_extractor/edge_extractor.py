@@ -51,9 +51,9 @@ class NaiveEdgeExtractor(object):
             for proposal in proposals_per_img.bbox:
                 x1, y1, x2, y2 = proposal.round().long()
                 if x1 == x2 or y1 == y2:
-                    x2 += 1
-                    y2 += 1
-                    print('invalid proposal(equal coordinate)', proposal)
+                    x2 += 2
+                    y2 += 2
+                    #print('invalid proposal(equal coordinate)', proposal)
                 if self._out_of_img_range(edge.shape, proposal):
                     edge_per_proposal = edge[:, x1:x2, y1:y2]
                 else:

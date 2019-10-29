@@ -71,7 +71,7 @@ class MaskRCNNLossComputation(object):
         result = []
         for item in edges:
             item = item.unsqueeze(0)
-            result.append(F.interpolate(item, size=(M, M), mode='bicubic').squeeze(0))
+            result.append(F.interpolate(item, size=(M, M), mode='bilinear').squeeze())
         return torch.stack(result, dim=0)
 
     def prepare_targets(self, proposals, targets, edges):
