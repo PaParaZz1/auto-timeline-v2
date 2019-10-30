@@ -290,6 +290,7 @@ _C.MODEL.CLASSIFIER_ORIENT.NUM_CLASSES = 2
 # Solver
 # ---------------------------------------------------------------------------- #
 _C.SOLVER = CN()
+_C.SOLVER.OPTIMIZER = 'SGD'
 _C.SOLVER.MAX_ITER = 40000
 
 _C.SOLVER.BASE_LR = 0.001
