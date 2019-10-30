@@ -43,7 +43,8 @@ def viz(args):
         top_prediction = coco_demo.select_top_predictions(top_prediction)
     
         masked_image = draw_on_image(image, top_prediction)
-        cat_img = np.concatenate([image, masked_image], axis=1)
+        gt_image = draw_on_image(image, target, mask_on=False)
+        cat_img = np.concatenate([image, masked_image, gt_image], axis=1)
         imsave(cat_img, os.path.join(OUTPUT_DIR, '{}.png'.format(idx)))
         print('finish {}'.format(idx))
 

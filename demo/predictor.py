@@ -259,7 +259,10 @@ def overlay_class_names(image, predictions):
         predictions (BoxList): the result of the computation by the model.
             It should contain the field `scores` and `labels`.
     """
-    scores = predictions.get_field("scores").tolist()
+    if predictions.has_field("scores"):  # pred
+        scores = predictions.get_field("scores").tolist()
+    else:  # gt
+        scores = [1.0 for _ in range(predictions.bbox.shape[0])]  # set gt score to 1.0
     labels = predictions.get_field("labels").tolist()
     labels_text = [CATEGORIES[i] for i in labels]
     boxes = predictions.bbox
