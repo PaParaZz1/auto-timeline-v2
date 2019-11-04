@@ -86,3 +86,25 @@ class Normalize(object):
             image = image[[2, 1, 0]] * 255
         image = F.normalize(image, mean=self.mean, std=self.std)
         return image, target
+
+
+class ColorJitter(object):
+    def __init__(self, eig_vec=None, eig_val=None):
+        if eig_vec is None:
+            eig_vec = torch.Tensor([
+                [0.4009, 0.7192, -0.5675],
+                [-0.8140, -0.0045, -0.5808],
+                [0.4203, -0.6948, -0.5836],
+            ])
+        if eig_val is None:
+            eig_val = torch.Tensor([[0.2175, 0.0188, 0.0045]])
+
+        self.eig_vec = eig_vec
+        self.eig_val = eig_val
+
+    def __call__(self, tensor, target):
+        assert(len(tensor.shape) == 3 and tensor.shape[0] == 3)
+        alpha = torch.normal(mean=torch.zeros_like(self.eig_val)) * 0.1
+        delta = torch.mm(self.eig_val*alpha, self.eig_vec)
+        tensor += delta.view(3, 1, 1)
+        return tensor, target
