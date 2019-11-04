@@ -52,6 +52,8 @@ _C.INPUT.PIXEL_STD = [1., 1., 1.]
 # Convert image to BGR format (for Caffe2 models), in range 0-255
 _C.INPUT.TO_BGR255 = True
 _C.INPUT.USE_COLOR_JITTER = False
+_C.INPUT.USE_EXPAND_BBOX = False
+_C.INPUT.EXPAND_BBOX_FACTOR = 1.2
 
 
 # -----------------------------------------------------------------------------

@@ -108,3 +108,22 @@ class ColorJitter(object):
         delta = torch.mm(self.eig_val*alpha, self.eig_vec)
         tensor += delta.view(3, 1, 1)
         return tensor, target
+
+
+class ExpandBbox(object):
+    def __init__(self, factor=1.2):
+        assert(factor >= 1)
+        self.factor = factor
+        self.apply_factor = (factor-1)/2
+
+    def __call__(self, inputs, target):
+        assert(target.mode == 'xyxy')
+        bbox = target.bbox.float()
+        W = bbox[:, 2] - bbox[:, 0]
+        H = bbox[:, 3] - bbox[:, 1]
+        W_delta, H_delta = W * self.apply_factor, H * self.apply_factor
+        delta = torch.stack([-W_delta, -H_delta, W_delta, H_delta], dim=1)
+        bbox += delta
+        target.bbox = torch.round(bbox).int().clamp(0)
+
+        return inputs, target

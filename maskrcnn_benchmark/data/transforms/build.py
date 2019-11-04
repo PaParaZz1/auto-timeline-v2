@@ -25,5 +25,7 @@ def build_transforms(cfg, is_train=True):
           ]
     if cfg.INPUT.USE_COLOR_JITTER:
         aug.append(T.ColorJitter())
+    if cfg.INPUT.USE_EXPAND_BBOX:
+        aug.append(T.ExpandBbox(cfg.INPUT.EXPAND_BBOX_FACTOR))
     transform = T.Compose(aug)
     return transform
