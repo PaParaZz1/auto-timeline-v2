@@ -1,6 +1,7 @@
 import os
 import argparse
 import numpy as np
+import torch
 import matplotlib
 matplotlib.use('agg')  # open it when you run this script in ssh server
 import matplotlib.pyplot as plt 
@@ -20,6 +21,16 @@ def imsave(img, path):
     plt.axis('off')
     plt.savefig(path) 
 
+
+def get_mask_array(target):
+    polygons = target.get_field('masks').polygons
+    mask_list = [x.convert_to_binarymask() for x in polygons]
+    new_list = []
+    for item in mask_list:
+        if item is not None:
+            new_list.append(item)
+    return torch.stack(new_list, dim=0).unsqueeze(1)
+    
 
 def viz(args):
     cfg.merge_from_file(args.config_file)
@@ -43,7 +54,9 @@ def viz(args):
         top_prediction = coco_demo.select_top_predictions(top_prediction)
     
         masked_image = draw_on_image(image, top_prediction)
-        gt_image = draw_on_image(image, target, mask_on=False)
+        target.add_field('mask', get_mask_array(target))
+
+        gt_image = draw_on_image(image, target)
         cat_img = np.concatenate([image, masked_image, gt_image], axis=1)
         imsave(cat_img, os.path.join(OUTPUT_DIR, '{}.png'.format(idx)))
         print('finish {}'.format(idx))

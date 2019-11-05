@@ -145,6 +145,18 @@ class Polygons(object):
         s += "mode={})".format(self.mode)
         return s
 
+    def convert_to_binarymask(self):
+        width, height = self.size
+        if len(self.polygons) == 0:
+            return None
+        # formatting for COCO PythonAPI
+        polygons = [p.numpy() for p in self.polygons]
+        rles = mask_utils.frPyObjects(polygons, height, width)
+        rle = mask_utils.merge(rles)
+        mask = mask_utils.decode(rle)
+        mask = torch.from_numpy(mask)
+        return mask 
+
 
 class SegmentationMask(object):
     """
