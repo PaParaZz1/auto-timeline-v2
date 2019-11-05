@@ -23,6 +23,8 @@ _C = CN()
 _C.MODEL = CN()
 _C.MODEL.RPN_ONLY = False
 _C.MODEL.MASK_ON = False
+_C.MODEL.GCN_MASK_ON = False
+_C.MODEL.BOUNDARY_PRED_ON = False
 _C.MODEL.DEVICE = "cuda"
 _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
 _C.MODEL.CLS_AGNOSTIC_BBOX_REG = False
@@ -245,6 +247,12 @@ _C.MODEL.ROI_MASK_HEAD.DILATION = 1
 _C.MODEL.ROI_MASK_HEAD.USE_GN = False
 # timeline
 _C.MODEL.ROI_MASK_HEAD.EXCLUDE_LABELS = (0, 3)
+
+# ---------------------------------------------------------------------------- #
+# GCN mask head options
+# ---------------------------------------------------------------------------- #
+_C.MODEL.ROI_GCN_MASK_HEAD = CN()
+
 
 # ---------------------------------------------------------------------------- #
 # ResNe[X]t options (ResNets = {ResNet, ResNeXt}

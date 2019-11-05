@@ -72,6 +72,13 @@ class GeneralizedRCNN(nn.Module):
             # when trainning, image_classes: Bx1 class_label
             _, image_orientations, classifier2_losses = self.classifier2(features[-1], targets)
 
+        # TODO boundary prediction module(features->gcn_features)
+        if self.cfg.MODEL.MASK_ON and self.cfg.MODEL.GCN_MASK_ON:
+            if self.cfg.MODEL.BOUNDARY_PRED_ON:
+                raise NotImplementedError
+            else:
+                gcn_features = features
+
         proposals, proposal_losses = self.rpn(images, features, targets)
         if self.cfg.MODEL.TARGET_EDGE_ON:
             target_edges = self.edge_extractor(images, proposals)
