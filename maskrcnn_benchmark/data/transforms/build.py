@@ -25,7 +25,19 @@ def build_transforms(cfg, is_train=True):
                   normalize_transform,
               ]
         if cfg.INPUT.USE_COLOR_JITTER:
-            aug.append(T.ColorJitter())
+            if cfg.INPUT.COLOR_JITTER_TYPE == 'imagenet':
+                aug.append(T.ColorJitter())
+            elif cfg.INPUT.COLOR_JITTER_TYPE == 'normal':
+                def find_totensor(transform):
+                    for idx, t in enumerate(transform):
+                        if isinstance(t, T.ToTensor):
+                            return idx
+                    raise ValueError("not found totensor transform index")
+
+                totensor_index = find_totensor(aug)
+                aug.insert(totensor_index, T.ColorJitterOfficial(hue=0.05))
+            else:
+                raise KeyError("invalid color jitter type:{}".format(cfg.INPUT.COLOR_JITTER_TYPE))
         if cfg.INPUT.USE_EXPAND_BBOX:
             aug.append(T.ExpandBbox(cfg.INPUT.EXPAND_BBOX_FACTOR))
     else:

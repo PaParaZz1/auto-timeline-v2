@@ -127,3 +127,11 @@ class ExpandBbox(object):
         target.bbox = torch.round(bbox).int().clamp(0)
 
         return inputs, target
+
+
+class ColorJitterOfficial(object):
+    def __init__(self, *args, **kwargs):
+        self.transform = torchvision.transforms.ColorJitter(*args, **kwargs)
+
+    def __call__(self, inputs, target):
+        return self.transform(inputs), target
