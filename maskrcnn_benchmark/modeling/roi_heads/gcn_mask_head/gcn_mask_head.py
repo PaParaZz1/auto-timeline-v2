@@ -1,15 +1,22 @@
 import torch
 import torch.nn as nn
+import random
 from matcher import ArchorMatcherGCN
 
 
 class GCNResNetLayer(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, activation=nn.ReLU(), norm=None, use_se=False):
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 activation=nn.ReLU(), norm=None, use_se=False):
         super(GCNResNetLayer, self).__init__()
-        self.conv_x0 = nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=kernel_size//2)
-        self.conv_n0 = nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=kernel_size//2)
-        self.conv_x1 = nn.Conv2d(out_channels, out_channels, kernel_size, stride=1, padding=kernel_size//2)
-        self.conv_n1 = nn.Conv2d(out_channels, out_channels, kernel_size, stride=1, padding=kernel_size//2)
+        p = kernel_size // 2
+        self.conv_x0 = nn.Conv2d(
+            in_channels, out_channels, kernel_size, stride=1, padding=p)
+        self.conv_n0 = nn.Conv2d(
+            in_channels, out_channels, kernel_size, stride=1, padding=p)
+        self.conv_x1 = nn.Conv2d(
+            out_channels, out_channels, kernel_size, stride=1, padding=p)
+        self.conv_n1 = nn.Conv2d(
+            out_channels, out_channels, kernel_size, stride=1, padding=p)
         self.act = activation
         if norm is not None:
             raise NotImplementedError
@@ -21,7 +28,7 @@ class GCNResNetLayer(torch.nn.Module):
         N, C, H, W = n.shape
         n_broadcast = n.view(B, L, C, H, W).unsqueeze(1)
         mask = m.reshape(B, L, L, 1, 1, 1)
-        o = torch.masked_select(n_broadcast, mask) 
+        o = torch.masked_select(n_broadcast, mask)
         o = o.view(B, L, connected_num, C, H, W)
         return o.sum(dim=2).view(N, C, H, W)
 
@@ -30,13 +37,13 @@ class GCNResNetLayer(torch.nn.Module):
         residual = x
         n_set = self.conv_n0(x)
         x = self.conv_x0(x)
-        x = self.act(x + self._get_neighbours_sum(n_set, m, connected_num))  
+        x = self.act(x + self._get_neighbours_sum(n_set, m, connected_num))
 
         n_set = self.conv_n1(x)
         x = self.conv_x1(x)
         x = x + self._get_neighbours_sum(n_set, m, connected_num)
         return self.act(x + residual)
-    
+
 
 class ROIGCNMaskHead(torch.nn.Module):
     def __init__(self, cfg):
@@ -50,14 +57,16 @@ class ROIGCNMaskHead(torch.nn.Module):
         assert(mode in ['train', 'inference'])
         if mode == 'train':
             # archor match
-            matched_features, matched_targets = self.matcher(features, proposals, targets)
+            matched_features, matched_targets = self.matcher(
+                features, proposals, targets)
             # init vertex
             coordinates, neighbours_matrix = self._init_graph(matched_features)
             # sample train target
             target_vertexs = self._sample_target(targets)
             # GCN iteration
             vertexs = self._get_vertex_feature(matched_features, coordinates)
-            offsets = self._forward(vertexs, neighbours_matrix, self.connected_num)
+            offsets = self._forward(
+                vertexs, neighbours_matrix, self.connected_num)
             coordinates += offsets
             # loss calculation
             raise NotImplementedError
@@ -67,11 +76,12 @@ class ROIGCNMaskHead(torch.nn.Module):
             # GCN iteration
             for i in range(self.inference_iter):
                 vertexs = self._get_vertex_feature(features, coordinates)
-                offsets = self._forward(vertexs, neighbours_matrix, self.connected_num)
+                offsets = self._forward(
+                    vertexs, neighbours_matrix, self.connected_num)
                 coordinates += offsets
             # post process
             raise NotImplementedError
-    
+
     def _forward(self, vertexs, neighbours_matrix, connected_num):
         raise NotImplementedError
 
@@ -84,7 +94,8 @@ class ROIGCNMaskHead(torch.nn.Module):
                 sample_result.append(p)
             elif num > self.sample_num:
                 index = random.sample([x for x in range(num)], self.sample_num)
-                sample_polygons = torch.index_select(p.polygons.view(-1, 2), index, dim=0).view(-1)
+                sample_polygons = torch.index_select(
+                    p.polygons.view(-1, 2), index, dim=0).view(-1)
                 p.polygons = sample_polygons
                 sample_result.append(p)
             else:
@@ -97,7 +108,8 @@ class ROIGCNMaskHead(torch.nn.Module):
                 for idx in range(old_polygons.shape[0]):
                     sample_polygons.append(old_polygons[idx])
                     if index_count < len(index) and idx == index[index_count]:
-                        sample_polygons.append((old_polygons[idx-1] + old_polygons[idx])//2)
+                        sample_polygons.append(
+                            (old_polygons[idx-1] + old_polygons[idx])//2)
                         index_count += 1
                 p.polygons = torch.stack(sample_polygons, dim=0).view(-1)
                 sample_result.append(p)
@@ -117,7 +129,8 @@ def build_gcn_mask_head(cfg):
 def test_get_neighbours_sum():
     module = GCNResNetLayer(3, 3, 3)
     x = torch.randn(2*6, 3, 4, 4)
-    m = torch.ByteTensor([[1, 0, 1, 1, 1, 0], [1, 1, 1, 1, 0, 0]]).view(2, 1, 6).repeat(1, 6, 1)
+    m = torch.ByteTensor([[1, 0, 1, 1, 1, 0], [1, 1, 1, 1, 0, 0]]).view(
+        2, 1, 6).repeat(1, 6, 1)
     output = module._get_neighbours_sum(x, m, 4)
     print(output.shape)
     print(m)
