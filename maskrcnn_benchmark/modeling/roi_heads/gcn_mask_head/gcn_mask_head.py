@@ -38,16 +38,41 @@ class GCNResNetLayer(torch.nn.Module):
 
 
 class ROIGCNMaskHead(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, cfg):
         super(ROIGCNMaskHead, self).__init__()
+        self.inference_iter = cfg.MODEL.GCN_MASK_HEAD.INFERNECE_ITER
+        self.connected_num = cfg.MODEL.GCN_MASK_HEAD.CONNECTED_NUM
 
-    def forward(self, inputs, mode):
+    def forward(self, features, targets, mode):
         assert(mode in ['train', 'inference'])
+        # init vertex location
+        coordinates, neighbours_matrix = self._init_graph(features)
+        if mode == 'train':
+            vertexs = self._get_vertex_feature(features, coordinates)
+            offsets = self._forward(vertexs, neighbours_matrix, self.connected_num)
+            coordinates += offsets
+            # loss calculation
+            raise NotImplementedError
+        elif mode == 'inference':
+            for i in range(self.inference_iter):
+                vertexs = self._get_vertex_feature(features, coordinates)
+                offsets = self._forward(vertexs, neighbours_matrix, self.connected_num)
+                coordinates += offsets
+            # post process
+            raise NotImplementedError
+    
+    def _forward(self, vertexs, neighbours_matrix, connected_num):
+        raise NotImplementedError
+
+    def _init_graph(self, features):
+        raise NotImplementedError
+
+    def _get_vertex_feature(self, features, coordinates):
         raise NotImplementedError
 
 
 def build_gcn_mask_head(cfg):
-    raise NotImplementedError
+    return ROIGCNMaskHead(cfg)
 
 
 def test_get_neighbours_sum():
